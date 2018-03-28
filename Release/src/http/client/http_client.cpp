@@ -1,19 +1,7 @@
 /***
-* ==++==
+* Copyright (C) Microsoft. All rights reserved.
+* Licensed under the MIT license. See LICENSE.txt file in the project root for full license information.
 *
-* Copyright (c) Microsoft Corporation. All rights reserved.
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-* http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*
-* ==--==
 * =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 *
 * HTTP Library: Client-side APIs.
@@ -141,20 +129,41 @@ request_context::request_context(const std::shared_ptr<_http_client_communicator
     responseImpl->_prepare_to_receive_data();
 }
 
+void _http_client_communicator::open_and_send_request_async(const std::shared_ptr<request_context> &request)
+{
+    auto self = std::static_pointer_cast<_http_client_communicator>(this->shared_from_this());
+    // Schedule a task to start sending.
+    pplx::create_task([self, request]
+    {
+        try
+        {
+            self->open_and_send_request(request);
+        }
+        catch (...)
+        {
+            request->report_exception(std::current_exception());
+        }
+    });
+}
+
 void _http_client_communicator::async_send_request(const std::shared_ptr<request_context> &request)
 {
     if (m_client_config.guarantee_order())
     {
-        // Send to call block to be processed.
-        push_request(request);
+        pplx::extensibility::scoped_critical_section_t l(m_open_lock);
+
+        if (++m_scheduled == 1)
+        {
+            open_and_send_request_async(request);
+        }
+        else
+        {
+            m_requests_queue.push(request);
+        }
     }
     else
     {
-        // Schedule a task to start sending.
-        pplx::create_task([this, request]
-        {
-            open_and_send_request(request);
-        });
+        open_and_send_request_async(request);
     }
 }
 
@@ -172,11 +181,7 @@ void _http_client_communicator::finish_request()
             auto request = m_requests_queue.front();
             m_requests_queue.pop();
 
-            // Schedule a task to start sending.
-            pplx::create_task([this, request]
-            {
-                open_and_send_request(request);
-            });
+            open_and_send_request_async(request);
         }
     }
 }
@@ -200,24 +205,6 @@ _http_client_communicator::_http_client_communicator(http::uri&& address, http_c
 void _http_client_communicator::open_and_send_request(const std::shared_ptr<request_context> &request)
 {
     // First see if client needs to be opened.
-    auto error = open_if_required();
-
-    if (error != 0)
-    {
-        // Failed to open
-        request->report_error(error, _XPLATSTR("Open failed"));
-
-        // DO NOT TOUCH the this pointer after completing the request
-        // This object could be freed along with the request as it could
-        // be the last reference to this object
-        return;
-    }
-
-    send_request(request);
-}
-
-unsigned long _http_client_communicator::open_if_required()
-{
     unsigned long error = 0;
 
     if (!m_opened)
@@ -236,25 +223,18 @@ unsigned long _http_client_communicator::open_if_required()
         }
     }
 
-    return error;
-}
-
-void _http_client_communicator::push_request(const std::shared_ptr<request_context> &request)
-{
-    pplx::extensibility::scoped_critical_section_t l(m_open_lock);
-
-    if (++m_scheduled == 1)
+    if (error != 0)
     {
-        // Schedule a task to start sending.
-        pplx::create_task([this, request]()
-        {
-            open_and_send_request(request);
-        });
+        // Failed to open
+        request->report_error(error, _XPLATSTR("Open failed"));
+
+        // DO NOT TOUCH the this pointer after completing the request
+        // This object could be freed along with the request as it could
+        // be the last reference to this object
+        return;
     }
-    else
-    {
-        m_requests_queue.push(request);
-    }
+
+    send_request(request);
 }
 
 inline void request_context::finish()

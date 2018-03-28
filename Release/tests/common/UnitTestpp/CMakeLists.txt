@@ -1,5 +1,3 @@
-include_directories(${Casablanca_INCLUDE_DIR} src .)
-
 set(UT_SOURCES
   src/AssertException.cpp
   src/CompositeTestReporter.cpp
@@ -49,4 +47,13 @@ elseif(WIN32)
 endif()
 
 add_library(unittestpp ${UT_SOURCES})
+target_link_libraries(unittestpp PUBLIC cpprest)
+
+if(UNIX)
+  cpprest_find_boost()
+  target_link_libraries(unittestpp PUBLIC cpprestsdk_boost_internal)
+endif()
 target_link_libraries(unittestpp ${ANDROID_STL_FLAGS})
+
+target_include_directories(unittestpp PRIVATE src)
+target_include_directories(unittestpp PUBLIC .)

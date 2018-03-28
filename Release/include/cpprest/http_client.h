@@ -1,19 +1,7 @@
 /***
-* ==++==
+* Copyright (C) Microsoft. All rights reserved.
+* Licensed under the MIT license. See LICENSE.txt file in the project root for full license information.
 *
-* Copyright (c) Microsoft Corporation. All rights reserved.
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-* http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*
-* ==--==
 * =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 *
 * HTTP Library: Client-side APIs.
@@ -57,7 +45,7 @@ typedef void* native_handle;}}}
 
 #include "cpprest/oauth2.h"
 
-#if !defined(_WIN32) && !defined(__cplusplus_winrt)
+#if !defined(_WIN32) && !defined(__cplusplus_winrt) || defined(CPPREST_FORCE_HTTP_CLIENT_ASIO)
 #if defined(__clang__)
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wconversion"
@@ -94,12 +82,12 @@ public:
     http_client_config() :
         m_guarantee_order(false),
         m_timeout(std::chrono::seconds(30)),
-        m_chunksize(0)
+        m_chunksize(0),
+        m_request_compressed(false)
 #if !defined(__cplusplus_winrt)
         , m_validate_certificates(true)
 #endif
-        , m_set_user_nativehandle_options([](native_handle)->void{})
-#if !defined(_WIN32) && !defined(__cplusplus_winrt)
+#if !defined(_WIN32) && !defined(__cplusplus_winrt) || defined(CPPREST_FORCE_HTTP_CLIENT_ASIO)
         , m_tlsext_sni_enabled(true)
 #endif
 #if defined(_WIN32) && !defined(__cplusplus_winrt)
@@ -258,6 +246,27 @@ public:
         return m_chunksize == 0;
     }
 
+    /// <summary>
+    /// Checks if requesting a compressed response is turned on, the default is off.
+    /// </summary>
+    /// <returns>True if compressed response is enabled, false otherwise</returns>
+    bool request_compressed_response() const
+    {
+        return m_request_compressed;
+    }
+
+    /// <summary>
+    /// Request that the server responds with a compressed body.
+    /// If true, in cases where the server does not support compression, this will have no effect.
+    /// The response body is internally decompressed before the consumer receives the data.
+    /// </summary>
+    /// <param name="request_compressed">True to turn on response body compression, false otherwise.</param>
+    /// <remarks>Please note there is a performance cost due to copying the request data. Currently only supported on Windows and OSX.</remarks>
+    void set_request_compressed_response(bool request_compressed)
+    {
+        m_request_compressed = request_compressed;
+    }
+
 #if !defined(__cplusplus_winrt)
     /// <summary>
     /// Gets the server certificate validation property.
@@ -307,6 +316,30 @@ public:
     /// </summary>
     /// <remarks>
     /// The native_handle is the following type depending on the underlying platform:
+    ///     Windows Desktop, WinHTTP - HINTERNET (session)
+    /// </remarks>
+    /// <param name="callback">A user callback allowing for customization of the session</param>
+    void set_nativesessionhandle_options(const std::function<void(native_handle)> &callback)
+    {
+        m_set_user_nativesessionhandle_options = callback;
+    }
+
+    /// <summary>
+    /// Invokes a user's callback to allow for customization of the session.
+    /// </summary>
+    /// <remarks>Internal Use Only</remarks>
+    /// <param name="handle">A internal implementation handle.</param>
+    void _invoke_nativesessionhandle_options(native_handle handle) const
+    {
+        if (m_set_user_nativesessionhandle_options)
+            m_set_user_nativesessionhandle_options(handle);
+    }
+
+    /// <summary>
+    /// Sets a callback to enable custom setting of platform specific options.
+    /// </summary>
+    /// <remarks>
+    /// The native_handle is the following type depending on the underlying platform:
     ///     Windows Desktop, WinHTTP - HINTERNET
     ///     Windows Runtime, WinRT - IXMLHTTPRequest2 *
     ///     All other platforms, Boost.Asio:
@@ -325,10 +358,11 @@ public:
     /// <param name="handle">A internal implementation handle.</param>
     void invoke_nativehandle_options(native_handle handle) const
     {
-        m_set_user_nativehandle_options(handle);
+        if (m_set_user_nativehandle_options)
+            m_set_user_nativehandle_options(handle);
     }
 
-#if !defined(_WIN32) && !defined(__cplusplus_winrt)
+#if !defined(_WIN32) && !defined(__cplusplus_winrt) || defined(CPPREST_FORCE_HTTP_CLIENT_ASIO)
     /// <summary>
     /// Sets a callback to enable custom setting of the ssl context, at construction time.
     /// </summary>
@@ -379,6 +413,7 @@ private:
 
     std::chrono::microseconds m_timeout;
     size_t m_chunksize;
+    bool m_request_compressed;
 
 #if !defined(__cplusplus_winrt)
     // IXmlHttpRequest2 doesn't allow configuration of certificate verification.
@@ -386,8 +421,9 @@ private:
 #endif
 
     std::function<void(native_handle)> m_set_user_nativehandle_options;
+	std::function<void(native_handle)> m_set_user_nativesessionhandle_options;
 
-#if !defined(_WIN32) && !defined(__cplusplus_winrt)
+#if !defined(_WIN32) && !defined(__cplusplus_winrt) || defined(CPPREST_FORCE_HTTP_CLIENT_ASIO)
     std::function<void(boost::asio::ssl::context&)> m_ssl_context_callback;
     bool m_tlsext_sni_enabled;
 #endif

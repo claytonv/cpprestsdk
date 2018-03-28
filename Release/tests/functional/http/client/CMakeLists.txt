@@ -27,6 +27,11 @@ set(SOURCES
   status_code_reason_phrase_tests.cpp
   to_string_tests.cpp
   http_client_fuzz_tests.cpp
+  stdafx.cpp
 )
 
+if(NOT WIN32)
+  cpprest_find_boost()
+  link_libraries(cpprestsdk_boost_internal)
+endif()
 add_casablanca_test(httpclient_test SOURCES)

@@ -1,19 +1,7 @@
 /***
-* ==++==
+* Copyright (C) Microsoft. All rights reserved.
+* Licensed under the MIT license. See LICENSE.txt file in the project root for full license information.
 *
-* Copyright (c) Microsoft Corporation. All rights reserved.
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-* http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*
-* ==--==
 * =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 *
 * Asynchronous I/O: streams API, used for formatted input and output, based on unformatted I/O using stream buffers
@@ -459,7 +447,9 @@ namespace Concurrency { namespace streams
     _INT_TRAIT(char,INT8_MIN,INT8_MAX)
     _INT_TRAIT(signed char,INT8_MIN,INT8_MAX)
     _INT_TRAIT(short,INT16_MIN,INT16_MAX)
-    _INT_TRAIT(utf16char,INT16_MIN,INT16_MAX)
+#if defined(_NATIVE_WCHAR_T_DEFINED)
+    _INT_TRAIT(wchar_t,WCHAR_MIN, WCHAR_MAX)
+#endif
     _INT_TRAIT(int,INT32_MIN,INT32_MAX)
     _INT_TRAIT(long, LONG_MIN, LONG_MAX)
     _INT_TRAIT(long long, LLONG_MIN, LLONG_MAX)

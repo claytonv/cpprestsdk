@@ -1,19 +1,7 @@
 /***
-* ==++==
+* Copyright (C) Microsoft. All rights reserved.
+* Licensed under the MIT license. See LICENSE.txt file in the project root for full license information.
 *
-* Copyright (c) Microsoft Corporation. All rights reserved.
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-* http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*
-* ==--==
 * =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 *
 * For the latest on this and related APIs, please see: https://github.com/Microsoft/cpprestsdk
@@ -159,11 +147,11 @@ public:
     {
         if (has(name))
         {
-            m_headers[name].append(_XPLATSTR(", ")).append(utility::conversions::print_string(value));
+            m_headers[name].append(_XPLATSTR(", ")).append(utility::conversions::details::print_string(value));
         }
         else
         {
-            m_headers[name] = utility::conversions::print_string(value);
+            m_headers[name] = utility::conversions::details::print_string(value);
         }
     }
 
@@ -318,28 +306,19 @@ private:
         return true;
     }
 
-    bool bind_impl(const key_type &text, ::utility::string_t &ref) const
+    bool bind_impl(const key_type &text, utf16string &ref) const
     {
-        ref = text;
+        ref = utility::conversions::to_utf16string(text);
+        return true;
+    }
+    bool bind_impl(const key_type &text, std::string &ref) const
+    {
+        ref = utility::conversions::to_utf8string(text);
         return true;
     }
 
     // Headers are stored in a map with case insensitive key.
     std::map<utility::string_t, utility::string_t, _case_insensitive_cmp> m_headers;
 };
-
-namespace details {
-
-    /// <summary>
-    /// Serialize the http_headers into name:value pairs separated by a carriage return and line feed.
-    /// </summary>
-    utility::string_t flatten_http_headers(const http_headers &headers);
-#if defined(_WIN32)
-    /// <summary>
-    /// Parses a string containing Http headers.
-    /// </summary>
-    void parse_headers_string(_Inout_z_ utf16char *headersStr, http_headers &headers);
-#endif
-}
 
 }}

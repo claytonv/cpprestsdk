@@ -1,19 +1,7 @@
 /***
-* ==++==
+* Copyright (C) Microsoft. All rights reserved.
+* Licensed under the MIT license. See LICENSE.txt file in the project root for full license information.
 *
-* Copyright (c) Microsoft Corporation. All rights reserved.
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-* http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*
-* ==--==
 * =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 *
 * HTTP Library: Client-side APIs.
@@ -31,6 +19,21 @@
 #include <stdexcept>
 #include <string>
 #include <memory>
+
+namespace web { namespace http { namespace details {
+
+/// <summary>
+/// Serialize the http_headers into name:value pairs separated by a carriage return and line feed.
+/// </summary>
+utility::string_t flatten_http_headers(const http_headers &headers);
+#if defined(_WIN32)
+/// <summary>
+/// Parses a string containing Http headers.
+/// </summary>
+void parse_headers_string(_Inout_z_ utf16char *headersStr, http_headers &headers);
+#endif
+
+}}}
 
 namespace web { namespace http { namespace client { namespace details {
 
@@ -127,16 +130,13 @@ private:
 
     http_client_config m_client_config;
 
-    bool m_opened;
+    std::atomic<bool> m_opened;
 
     pplx::extensibility::critical_section_t m_open_lock;
 
     // Wraps opening the client around sending a request.
+    void open_and_send_request_async(const std::shared_ptr<request_context> &request);
     void open_and_send_request(const std::shared_ptr<request_context> &request);
-
-    unsigned long open_if_required();
-
-    void push_request(const std::shared_ptr<request_context> &request);
 
     // Queue used to guarantee ordering of requests, when applicable.
     std::queue<std::shared_ptr<request_context>> m_requests_queue;

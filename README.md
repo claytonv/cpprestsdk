@@ -4,7 +4,52 @@ The C++ REST SDK is a Microsoft project for cloud-based client-server communicat
 
 ## Getting Started
 
-Are you new to the C++ Rest SDK? To get going we recommend you start by taking a look at our [tutorial](https://github.com/Microsoft/cpprestsdk/wiki/Getting-Started-Tutorial) to use the http_client. It walks through how to setup a project to use the C++ Rest SDK and make a basic Http request. Other important information, like how to build the C++ Rest SDK from source, can be located on the [documentation](https://github.com/Microsoft/cpprestsdk/wiki) page.  
+With [vcpkg](https://github.com/Microsoft/vcpkg) on Windows
+```
+PS> vcpkg install cpprestsdk cpprestsdk:x64-windows
+```
+With [apt-get](https://launchpad.net/ubuntu/+source/casablanca/2.8.0-2build2) on Debian/Ubuntu
+```
+$ sudo apt-get install libcpprest-dev
+```
+With [brew](https://github.com/Homebrew/homebrew-core/blob/master/Formula/cpprestsdk.rb) on OSX
+```
+$ brew install cpprestsdk
+```
+With [NuGet](https://www.nuget.org/packages/cpprestsdk.android/) on Windows for Android
+```
+PM> Install-Package cpprestsdk.android
+```
+For other platforms, install options, how to build from source, and more, take a look at our [Documentation](https://github.com/Microsoft/cpprestsdk/wiki).
+
+Once you have the library, look at our [tutorial](https://github.com/Microsoft/cpprestsdk/wiki/Getting-Started-Tutorial) to use the http_client. It walks through how to setup a project to use the C++ Rest SDK and make a basic Http request.
+
+To use from CMake:
+```cmake
+cmake_minimum_required(VERSION 3.7)
+project(main)
+
+find_path(CPPREST_INCLUDE cpprest/http_client.h)
+find_library(CPPREST_LIB NAMES cpprest_2_9d cpprest_2_9 cpprestd cpprest)
+find_package(Boost REQUIRED COMPONENTS random system thread filesystem chrono atomic date_time regex)
+find_package(OpenSSL 1.0.0 REQUIRED)
+
+add_executable(main main.cpp)
+target_include_directories(main ${CPPREST_INCLUDE})
+target_link_libraries(main
+  ${CPPREST_LIB}
+  Boost::boost
+  Boost::random
+  Boost::system
+  Boost::thread
+  Boost::filesystem
+  Boost::chrono
+  Boost::atomic
+  Boost::date_time
+  Boost::regex
+  OpenSSL::SSL
+)
+```
 
 ## What's in the SDK:
 
